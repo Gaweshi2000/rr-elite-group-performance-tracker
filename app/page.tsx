@@ -1,7 +1,14 @@
 "use client";
 import { useEffect, useState } from "react";
 import { db } from "./lib/firebase";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import {
+  collection,
+  addDoc,
+  serverTimestamp,
+  query,
+  orderBy,
+  getDocs,
+} from "firebase/firestore";
 import HabitCard from "./components/HabitCard";
 import { Loader2, Zap } from "lucide-react";
 import { fetchMonthlyData } from "./lib/analytics";
@@ -35,6 +42,7 @@ export default function Home() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [groupData, setGroupData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const loadAnalysis = async () => {
     const data = await fetchMonthlyData();
@@ -42,6 +50,18 @@ export default function Home() {
   };
 
   useEffect(() => {
+    const fetchHabits = async () => {
+      const q = query(collection(db, "habits"), orderBy("order", "asc"));
+      const querySnapshot = await getDocs(q);
+      const habitList = querySnapshot.docs.map((doc) => ({
+        id: doc.id,
+        title: doc.data().title,
+        isCompleted: false,
+      }));
+      setHabits(habitList);
+      setLoading(false);
+    };
+    fetchHabits();
     loadAnalysis();
   }, []);
 
