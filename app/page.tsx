@@ -111,7 +111,7 @@ export default function Home() {
         <div className="max-w-md mx-auto mb-10">
           <input
             type="text"
-            placeholder="Enter Leader Name..."
+            placeholder="Enter Name..."
             value={leaderName}
             onChange={(e) => setLeaderName(e.target.value)}
             className="w-full bg-slate-900/50 border border-slate-700 rounded-2xl px-6 py-4 text-white text-lg focus:border-teal-500 focus:ring-1 focus:ring-teal-500 outline-none transition-all placeholder:text-slate-600"
