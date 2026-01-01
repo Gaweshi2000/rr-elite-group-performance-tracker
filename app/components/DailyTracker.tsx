@@ -3,10 +3,12 @@ import { Zap, Activity } from "lucide-react";
 export default function DailyTracker({ updates }: { updates: any[] }) {
   const stats = updates.reduce((acc, curr) => {
     if (!acc[curr.leaderName]) {
-      acc[curr.leaderName] = curr.count;
+      acc[curr.leaderName] = new Set<string>();
     }
+    curr.habits?.forEach((habit: string) => acc[curr.leaderName].add(habit));
     return acc;
-  }, {});
+  }, {} as Record<string, Set<string>>);
+
   return (
     <div className="mt-12 bg-slate-900/50 border border-slate-800 rounded-3xl p-8">
       <div className="flex items-center gap-3 mb-6">
@@ -18,17 +20,17 @@ export default function DailyTracker({ updates }: { updates: any[] }) {
 
       <div className="space-y-4">
         {Object.entries(stats).length > 0 ? (
-          Object.entries(stats).map(([name, total]: [string, any]) => (
+          Object.entries(stats).map(([name, habitSet]) => (
             <div
               key={name}
-              className="flex justify-between items-center p-4 bg-slate-800/40 rounded-2xl border border-slate-700/50 animate-in fade-in slide-in-from-bottom-2 duration-500"
+              className="flex justify-between items-center p-4 bg-slate-800/40 rounded-2xl border border-slate-700/50"
             >
               <span className="text-slate-200 font-bold font-sans tracking-tight">
                 {name}
               </span>
               <div className="flex items-center gap-3 bg-teal-500/10 px-4 py-2 rounded-xl border border-teal-500/20">
                 <span className="text-teal-400 font-black text-xl">
-                  {total}
+                  {habitSet.size}
                 </span>
                 <Zap className="w-5 h-5 text-teal-400 animate-pulse" />
               </div>
