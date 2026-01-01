@@ -30,7 +30,7 @@ export default function DailyTracker({ updates }: { updates: any[] }) {
               </span>
               <div className="flex items-center gap-3 bg-teal-500/10 px-4 py-2 rounded-xl border border-teal-500/20">
                 <span className="text-teal-400 font-black text-xl">
-                  {habitSet.size}
+                  {(habitSet as Set<string>).size}
                 </span>
                 <Zap className="w-5 h-5 text-teal-400 animate-pulse" />
               </div>
