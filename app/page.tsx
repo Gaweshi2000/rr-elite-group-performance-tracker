@@ -46,7 +46,19 @@ export default function Home() {
 
   const loadAnalysis = async () => {
     const data = await fetchMonthlyData();
-    setGroupData(data);
+
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
+    const todayData = data.filter((update) => {
+      const updateDate = update.timestamp?.toDate
+        ? update.timestamp.toDate()
+        : new Date(update.timestamp);
+
+      return updateDate >= startOfToday;
+    });
+
+    setGroupData(todayData);
   };
 
   useEffect(() => {
