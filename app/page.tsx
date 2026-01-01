@@ -10,7 +10,7 @@ import {
   getDocs,
 } from "firebase/firestore";
 import HabitCard from "./components/HabitCard";
-import { Loader2, Zap } from "lucide-react";
+import { Loader2, Zap, Trophy, Crown } from "lucide-react";
 import { fetchMonthlyData } from "./lib/analytics";
 import Leaderboard from "./components/DailyTracker";
 import Link from "next/link";
@@ -39,6 +39,8 @@ export default function Home() {
   const [habits, setHabits] = useState(ELITE_HABITS);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [perfectDay, setPerfectDay] = useState(false);
+
   const [error, setError] = useState<string | null>(null);
   const [groupData, setGroupData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -55,7 +57,6 @@ export default function Home() {
 
   const loadAnalysis = async () => {
     const data = await fetchMonthlyData();
-
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
 
@@ -63,7 +64,6 @@ export default function Home() {
       const updateDate = update.timestamp?.toDate
         ? update.timestamp.toDate()
         : new Date(update.timestamp);
-
       return updateDate >= startOfToday;
     });
 
@@ -93,9 +93,7 @@ export default function Home() {
       const userTodayUpdates = groupData.filter(
         (u) => u.leaderName.toLowerCase() === leaderName.toLowerCase()
       );
-
       const completedToday = new Set(userTodayUpdates.flatMap((u) => u.habits));
-
       setHabits((prevHabits) =>
         prevHabits.map((h) => ({
           ...h,
@@ -103,7 +101,6 @@ export default function Home() {
         }))
       );
     };
-
     syncTodayProgress();
   }, [leaderName, groupData]);
 
@@ -120,10 +117,14 @@ export default function Home() {
 
   const shareWithGroup = async () => {
     const completed = habits.filter((h) => h.isCompleted).map((h) => h.title);
+
     if (!leaderName.trim())
       return setError("Please enter your name to stay mission-aligned.");
     if (completed.length === 0)
       return setError("You must complete at least one habit before updating.");
+
+    const isPerfect = completed.length === habits.length;
+    setPerfectDay(isPerfect); 
 
     setIsSubmitting(true);
 
@@ -136,9 +137,7 @@ export default function Home() {
       });
 
       setShowSuccess(true);
-
       setHabits(ELITE_HABITS);
-
       await loadAnalysis();
     } catch (e) {
       console.error("Submission error:", e);
@@ -207,9 +206,11 @@ export default function Home() {
           >
             View Comprehensive Monthly Analysis →
           </Link>
+
           {showSuccess && (
             <SuccessPopup
               name={leaderName}
+              isElite={perfectDay}
               onClose={() => setShowSuccess(false)}
             />
           )}
@@ -226,34 +227,80 @@ export default function Home() {
 function SuccessPopup({
   onClose,
   name,
+  isElite, 
 }: {
   onClose: () => void;
   name: string;
+  isElite: boolean;
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-[#020617]/90 backdrop-blur-md animate-in fade-in zoom-in-95 duration-300">
-      <div className="bg-slate-900 border border-teal-500/30 p-8 rounded-3xl max-w-sm w-full text-center shadow-2xl shadow-teal-500/10 relative overflow-hidden">
-        <div className="absolute -top-24 -left-24 w-48 h-48 bg-teal-500/10 rounded-full blur-3xl -z-10" />
+      <div
+        className={`bg-slate-900 border p-8 rounded-3xl max-w-sm w-full text-center shadow-2xl relative overflow-hidden
+        ${
+          isElite
+            ? "border-amber-500/50 shadow-amber-500/20"
+            : "border-teal-500/30 shadow-teal-500/10"
+        }`}
+      >
+        <div
+          className={`absolute -top-24 -left-24 w-48 h-48 rounded-full blur-3xl -z-10
+          ${isElite ? "bg-amber-500/20" : "bg-teal-500/10"}`}
+        />
 
-        <div className="w-20 h-20 bg-teal-500/20 rounded-full flex items-center justify-center mx-auto mb-6 ring-4 ring-teal-500/10">
-          <Zap className="w-10 h-10 text-teal-400 animate-pulse" />
+        <div
+          className={`w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6 ring-4 
+          ${
+            isElite
+              ? "bg-amber-500/10 ring-amber-500/20"
+              : "bg-teal-500/20 ring-teal-500/10"
+          }`}
+        >
+          {isElite ? (
+            <Trophy className="w-12 h-12 text-amber-400 animate-bounce" />
+          ) : (
+            <Zap className="w-10 h-10 text-teal-400 animate-pulse" />
+          )}
         </div>
 
-        <h2 className="text-2xl font-bold text-white mb-2 font-sans tracking-tight">
-          Mission Logged!
+        {/* Dynamic Title */}
+        <h2 className="text-3xl font-bold text-white mb-2 font-sans tracking-tight">
+          {isElite ? (
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-200 to-amber-500">
+              ELITE STATUS
+            </span>
+          ) : (
+            "Mission Logged"
+          )}
         </h2>
 
+        {/* Dynamic Message */}
         <p className="text-slate-400 mb-8 leading-relaxed">
-          Excellent discipline,{" "}
-          <span className="text-teal-400 font-bold">{name}</span>. Your progress
-          has been shared with the group.
+          {isElite ? (
+            <>
+              Maximum discipline achieved,{" "}
+              <span className="text-amber-400 font-bold">{name}</span>. You have
+              conquered every objective today.
+            </>
+          ) : (
+            <>
+              Excellent progress,{" "}
+              <span className="text-teal-400 font-bold">{name}</span>. Your
+              mission has been synced with the group.
+            </>
+          )}
         </p>
 
         <button
           onClick={onClose}
-          className="w-full py-4 bg-teal-600 hover:bg-teal-500 text-white rounded-xl font-bold transition-all shadow-lg shadow-teal-900/40 active:scale-95"
+          className={`w-full py-4 text-white rounded-xl font-bold transition-all shadow-lg active:scale-95
+          ${
+            isElite
+              ? "bg-gradient-to-r from-amber-600 to-amber-500 hover:to-amber-400 shadow-amber-900/40 border border-amber-400/20"
+              : "bg-teal-600 hover:bg-teal-500 shadow-teal-900/40"
+          }`}
         >
-          Continue Mission
+          {isElite ? "Claim Victory" : "Continue Mission"}
         </button>
       </div>
     </div>
