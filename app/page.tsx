@@ -37,12 +37,21 @@ const ELITE_HABITS = [
 
 export default function Home() {
   const [habits, setHabits] = useState(ELITE_HABITS);
-  const [leaderName, setLeaderName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [groupData, setGroupData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [leaderName, setLeaderName] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("elite_leader_name") || "";
+    }
+    return "";
+  });
+
+  useEffect(() => {
+    localStorage.setItem("elite_leader_name", leaderName);
+  }, [leaderName]);
 
   const loadAnalysis = async () => {
     const data = await fetchMonthlyData();
@@ -76,6 +85,27 @@ export default function Home() {
     fetchHabits();
     loadAnalysis();
   }, []);
+
+  useEffect(() => {
+    if (!leaderName.trim() || groupData.length === 0) return;
+
+    const syncTodayProgress = () => {
+      const userTodayUpdates = groupData.filter(
+        (u) => u.leaderName.toLowerCase() === leaderName.toLowerCase()
+      );
+
+      const completedToday = new Set(userTodayUpdates.flatMap((u) => u.habits));
+
+      setHabits((prevHabits) =>
+        prevHabits.map((h) => ({
+          ...h,
+          isCompleted: completedToday.has(h.title),
+        }))
+      );
+    };
+
+    syncTodayProgress();
+  }, [leaderName, groupData]);
 
   const toggleHabit = (id: string) => {
     setHabits(
@@ -242,7 +272,6 @@ function ErrorPopup({
       <div className="bg-slate-900 border border-amber-500/30 p-8 rounded-3xl max-w-sm w-full text-center shadow-2xl shadow-amber-500/5 relative overflow-hidden">
         <div className="w-20 h-20 bg-amber-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
           <Zap className="w-10 h-10 text-amber-500 rotate-180" />{" "}
-          {/* Rotated zap for warning sign */}
         </div>
 
         <h2 className="text-2xl font-bold text-white mb-2 font-sans tracking-tight">
