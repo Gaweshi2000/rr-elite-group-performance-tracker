@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { db } from "./lib/firebase";
 import {
   collection,
@@ -10,9 +10,8 @@ import {
   getDocs,
 } from "firebase/firestore";
 import HabitCard from "./components/HabitCard";
-import { Loader2, Zap, Trophy, Crown } from "lucide-react";
+import { Loader2, Zap, Trophy, ChevronDown, Check } from "lucide-react";
 import { fetchMonthlyData } from "./lib/analytics";
-import Leaderboard from "./components/DailyTracker";
 import Link from "next/link";
 import DailyTracker from "./components/DailyTracker";
 
@@ -44,6 +43,12 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [groupData, setGroupData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const [allMembers, setAllMembers] = useState<string[]>([]);
+  const [filteredMembers, setFilteredMembers] = useState<string[]>([]);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
   const [leaderName, setLeaderName] = useState(() => {
     if (typeof window !== "undefined") {
       return localStorage.getItem("elite_leader_name") || "";
@@ -54,6 +59,50 @@ export default function Home() {
   useEffect(() => {
     localStorage.setItem("elite_leader_name", leaderName);
   }, [leaderName]);
+
+  useEffect(() => {
+    const fetchMembers = async () => {
+      try {
+        const q = query(collection(db, "members"), orderBy("name", "asc"));
+        const snapshot = await getDocs(q);
+        const names = snapshot.docs.map((doc) => doc.data().name);
+        setAllMembers(names);
+      } catch (error) {
+        console.error("Error fetching members:", error);
+      }
+    };
+    fetchMembers();
+  }, []);
+
+  useEffect(() => {
+    if (leaderName.trim() === "") {
+      setFilteredMembers([]);
+      setShowDropdown(false);
+      return;
+    }
+
+    const matches = allMembers.filter(
+      (name) =>
+        name.toLowerCase().includes(leaderName.toLowerCase()) &&
+        name.toLowerCase() !== leaderName.toLowerCase()
+    );
+
+    setFilteredMembers(matches);
+    setShowDropdown(matches.length > 0);
+  }, [leaderName, allMembers]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const loadAnalysis = async () => {
     const data = await fetchMonthlyData();
@@ -112,6 +161,11 @@ export default function Home() {
     );
   };
 
+  const selectName = (name: string) => {
+    setLeaderName(name);
+    setShowDropdown(false);
+  };
+
   const completedCount = habits.filter((h) => h.isCompleted).length;
   const progressPercentage = (completedCount / habits.length) * 100;
 
@@ -120,11 +174,18 @@ export default function Home() {
 
     if (!leaderName.trim())
       return setError("Please enter your name to stay mission-aligned.");
+
+    if (!allMembers.includes(leaderName)) {
+      return setError(
+        "Access Denied: You must select a valid member name from the list."
+      );
+    }
+
     if (completed.length === 0)
       return setError("You must complete at least one habit before updating.");
 
     const isPerfect = completed.length === habits.length;
-    setPerfectDay(isPerfect); 
+    setPerfectDay(isPerfect);
 
     setIsSubmitting(true);
 
@@ -169,14 +230,36 @@ export default function Home() {
           </p>
         </header>
 
-        <div className="max-w-md mx-auto mb-10">
-          <input
-            type="text"
-            placeholder="Enter Name..."
-            value={leaderName}
-            onChange={(e) => setLeaderName(e.target.value)}
-            className="w-full bg-slate-900/50 border border-slate-700 rounded-2xl px-6 py-4 text-white text-lg focus:border-teal-500 focus:ring-1 focus:ring-teal-500 outline-none transition-all placeholder:text-slate-600"
-          />
+        <div className="max-w-md mx-auto mb-10 relative" ref={dropdownRef}>
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Start typing your name..."
+              value={leaderName}
+              onChange={(e) => {
+                setLeaderName(e.target.value);
+                setShowDropdown(true);
+              }}
+              onFocus={() => setShowDropdown(true)}
+              className="w-full bg-slate-900/50 border border-slate-700 rounded-2xl px-6 py-4 text-white text-lg focus:border-teal-500 focus:ring-1 focus:ring-teal-500 outline-none transition-all placeholder:text-slate-600"
+            />
+            <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none w-5 h-5" />
+          </div>
+
+          {showDropdown && filteredMembers.length > 0 && (
+            <div className="absolute top-full left-0 right-0 mt-2 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl z-50 max-h-60 overflow-y-auto">
+              {filteredMembers.map((name) => (
+                <button
+                  key={name}
+                  onClick={() => selectName(name)}
+                  className="w-full text-left px-6 py-3 text-slate-200 hover:bg-teal-500/10 hover:text-teal-400 transition-colors border-b border-slate-700/50 last:border-0 flex items-center justify-between group"
+                >
+                  {name}
+                  <Check className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity text-teal-500" />
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-10">
@@ -227,7 +310,7 @@ export default function Home() {
 function SuccessPopup({
   onClose,
   name,
-  isElite, 
+  isElite,
 }: {
   onClose: () => void;
   name: string;
