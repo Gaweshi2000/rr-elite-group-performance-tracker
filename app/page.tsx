@@ -8,12 +8,15 @@ import {
   query,
   orderBy,
   getDocs,
+  Timestamp,
 } from "firebase/firestore";
 import HabitCard from "./components/HabitCard";
 import { Loader2, Zap, Trophy, ChevronDown, Check } from "lucide-react";
 import { fetchMonthlyData } from "./lib/analytics";
 import Link from "next/link";
 import DailyTracker from "./components/DailyTracker";
+import DateNavigator from "./components/DateNavigator";
+import { fetchDateLog } from "./lib/analytics";
 
 const ELITE_HABITS = [
   { id: "1", title: "Morning Priming", isCompleted: false },
@@ -36,6 +39,7 @@ const ELITE_HABITS = [
 
 export default function Home() {
   const [habits, setHabits] = useState(ELITE_HABITS);
+  const [viewDate, setViewDate] = useState(new Date());
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [perfectDay, setPerfectDay] = useState(false);
@@ -135,6 +139,40 @@ export default function Home() {
     loadAnalysis();
   }, []);
 
+  const loadDailyContext = async () => {
+    try {
+      const dayLogs = await fetchDateLog(viewDate);
+      setGroupData(dayLogs);
+    } catch (err) {
+      console.error("Time travel failed:", err);
+    }
+  };
+
+  useEffect(() => {
+    loadDailyContext();
+  }, [viewDate]);
+
+  useEffect(() => {
+    if (!leaderName.trim()) return;
+
+    const syncHabits = () => {
+      const userLogs = groupData.filter(
+        (u: any) => u.leaderName?.toLowerCase() === leaderName.toLowerCase()
+      );
+
+      const completedSet = new Set(userLogs.flatMap((u: any) => u.habits));
+
+      setHabits((prev) =>
+        prev.map((h) => ({
+          ...h,
+          isCompleted: completedSet.has(h.title),
+        }))
+      );
+    };
+
+    syncHabits();
+  }, [groupData, leaderName]);
+
   useEffect(() => {
     if (!leaderName.trim() || groupData.length === 0) return;
 
@@ -190,16 +228,27 @@ export default function Home() {
     setIsSubmitting(true);
 
     try {
+      const isToday = new Date().toDateString() === viewDate.toDateString();
+
+      let timestamp;
+
+      if (isToday) {
+        timestamp = serverTimestamp();
+      } else {
+        const pastDate = new Date(viewDate);
+        pastDate.setHours(12, 0, 0, 0);
+        timestamp = Timestamp.fromDate(pastDate);
+      }
+
       await addDoc(collection(db, "updates"), {
         leaderName,
         habits: completed,
         count: completed.length,
-        timestamp: serverTimestamp(),
+        timestamp: timestamp,
       });
 
       setShowSuccess(true);
-      setHabits(ELITE_HABITS);
-      await loadAnalysis();
+      await loadDailyContext();
     } catch (e) {
       console.error("Submission error:", e);
       setError("Connection error. Could not reach the group cloud.");
@@ -229,6 +278,7 @@ export default function Home() {
             Mission Progress: {completedCount} / {habits.length}
           </p>
         </header>
+        <DateNavigator selectedDate={viewDate} onSelectDate={setViewDate} />
 
         <div className="max-w-md mx-auto mb-10 relative" ref={dropdownRef}>
           <div className="relative">
@@ -302,7 +352,16 @@ export default function Home() {
             <ErrorPopup message={error} onClose={() => setError(null)} />
           )}
         </div>
-        {groupData.length > 0 && <DailyTracker updates={groupData} />}
+        {groupData.length > 0 && (
+          <DailyTracker
+            updates={groupData}
+            dateLabel={viewDate.toLocaleDateString(undefined, {
+              weekday: "long",
+              month: "long",
+              day: "numeric",
+            })}
+          />
+        )}
       </div>
     </main>
   );
