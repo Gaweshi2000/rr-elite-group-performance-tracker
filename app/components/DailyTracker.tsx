@@ -1,7 +1,7 @@
 import { Zap, Activity } from "lucide-react";
 import { useEffect, useState } from "react";
 
-export default function DailyTracker({ updates }: { updates: any[] }) {
+export default function DailyTracker({ updates, dateLabel }: { updates: any[] , dateLabel?: string}) {
 
   const [todayDate, setTodayDate] = useState("");
 
@@ -30,13 +30,13 @@ export default function DailyTracker({ updates }: { updates: any[] }) {
         <div className="flex items-center gap-3">
           <Activity className="text-teal-400 w-6 h-6" />
           <h2 className="text-2xl font-bold text-white font-sans">
-            Today's Alignment
+            {dateLabel ? `${dateLabel} Alignment` : "Today's Alignment"}
           </h2>
         </div>
         
         {todayDate && (
           <p className="text-slate-500 text-sm font-mono uppercase tracking-widest ml-9 border-l-2 border-slate-800 pl-3">
-            {todayDate}
+            {dateLabel || todayDate}
           </p>
         )}
       </div>
@@ -62,7 +62,7 @@ export default function DailyTracker({ updates }: { updates: any[] }) {
         ) : (
           <div className="text-center py-8">
             <p className="text-slate-500 italic mb-2">
-              No missions logged yet for {todayDate || "today"}.
+              No missions logged yet for {dateLabel || todayDate}.
             </p>
             <p className="text-teal-500/50 text-xs uppercase font-bold tracking-widest">
               Be the First
