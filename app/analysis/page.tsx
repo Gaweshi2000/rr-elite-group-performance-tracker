@@ -13,12 +13,11 @@ import {
   Target,
   Loader2,
 } from "lucide-react";
+import { getHabitsForDate } from "../lib/habits";
 
 export default function AnalysisPage() {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-
-  const [totalDailyHabits, setTotalDailyHabits] = useState(0);
 
   const now = new Date();
   const currentMonthName = now
@@ -27,14 +26,31 @@ export default function AnalysisPage() {
   const currentYear = now.getFullYear();
   const daysPassed = now.getDate();
 
-  const targetHabits = daysPassed * (totalDailyHabits || 1);
+  const [dynamicTarget, setDynamicTarget] = useState(0);
 
   useEffect(() => {
+    const calculateAccurateTarget = () => {
+      let totalExpected = 0;
+      const today = new Date();
+      const currentYear = today.getFullYear();
+      const currentMonth = today.getMonth();
+      const daysInMonth = today.getDate();
+
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dateIterator = new Date(currentYear, currentMonth, day);
+
+        const requiredHabits = getHabitsForDate(dateIterator);
+
+        totalExpected += requiredHabits.length;
+      }
+
+      setDynamicTarget(totalExpected);
+    };
+
+    calculateAccurateTarget();
+
     const loadSystem = async () => {
       try {
-        const habitsSnapshot = await getDocs(collection(db, "habits"));
-        setTotalDailyHabits(habitsSnapshot.size);
-
         const result = await fetchMonthlyData();
 
         const currentMonthData = result.filter((item: any) => {
@@ -74,7 +90,7 @@ export default function AnalysisPage() {
 
     acc[name].dates.add(dateKey);
     curr.habits.forEach((h: string) =>
-      acc[name].dailyHabits.add(`${dateKey}-${h}`)
+      acc[name].dailyHabits.add(`${dateKey}-${h}`),
     );
 
     return acc;
@@ -96,7 +112,7 @@ export default function AnalysisPage() {
     }, {});
 
   const topHabit = Object.entries(habitFrequency).sort(
-    (a: any, b: any) => b[1] - a[1]
+    (a: any, b: any) => b[1] - a[1],
   )[0];
 
   if (loading)
@@ -135,10 +151,10 @@ export default function AnalysisPage() {
               Group Target (Per Person)
             </p>
             <h3 className="text-3xl font-bold text-white">
-              {totalDailyHabits > 0 ? targetHabits : "..."} Habits
+              {dynamicTarget} Missions
             </h3>
             <p className="text-xs text-slate-600 mt-2">
-              Based on {totalDailyHabits} active missions × {daysPassed} days
+              Cumulative target based on specific daily requirements
             </p>
           </div>
           <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-3xl">
@@ -177,7 +193,7 @@ export default function AnalysisPage() {
                 {Object.entries(leaderTotals)
                   .sort((a: any, b: any) => b[1] - a[1])
                   .map(([name, total]: [string, any]) => {
-                    const safeTarget = targetHabits > 0 ? targetHabits : 1;
+                    const safeTarget = dynamicTarget > 0 ? dynamicTarget : 1;
                     const percentage = Math.round((total / safeTarget) * 100);
 
                     return (
@@ -204,7 +220,7 @@ export default function AnalysisPage() {
                           </span>
                           <span className="text-slate-500 text-sm">
                             {" "}
-                            / {targetHabits}
+                            / {dynamicTarget}
                           </span>
                         </td>
                         <td className="px-8 py-6">
