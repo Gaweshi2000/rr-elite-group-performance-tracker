@@ -17,28 +17,10 @@ import Link from "next/link";
 import DailyTracker from "./components/DailyTracker";
 import DateNavigator from "./components/DateNavigator";
 import { fetchDateLog } from "./lib/analytics";
-
-const ELITE_HABITS = [
-  { id: "1", title: "Morning Priming", isCompleted: false },
-  { id: "2", title: "Meditation", isCompleted: false },
-  { id: "3", title: "Journaling", isCompleted: false },
-  {
-    id: "4",
-    title: "Drink Enough Water (Min 2litre or more)",
-    isCompleted: false,
-  },
-  { id: "5", title: "Sleep Enough (Min 7 hours)", isCompleted: false },
-  { id: "6", title: "Healthy food", isCompleted: false },
-  { id: "7", title: "Exercise", isCompleted: false },
-  {
-    id: "8",
-    title: "Apply Tools in daily life or revisit them",
-    isCompleted: false,
-  },
-];
+import { getHabitsForDate } from "./lib/habits";
 
 export default function Home() {
-  const [habits, setHabits] = useState(ELITE_HABITS);
+  const [habits, setHabits] = useState<any[]>([]);
   const [viewDate, setViewDate] = useState(new Date());
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -65,6 +47,18 @@ export default function Home() {
   }, [leaderName]);
 
   useEffect(() => {
+    const currentHabits = getHabitsForDate(viewDate);
+    const habitsWithState = currentHabits.map((h) => ({
+      ...h,
+      isCompleted: false,
+    }));
+
+    setHabits(habitsWithState);
+
+    loadDailyContext();
+  }, [viewDate]);
+
+  useEffect(() => {
     const fetchMembers = async () => {
       try {
         const q = query(collection(db, "members"), orderBy("name", "asc"));
@@ -88,7 +82,7 @@ export default function Home() {
     const matches = allMembers.filter(
       (name) =>
         name.toLowerCase().includes(leaderName.toLowerCase()) &&
-        name.toLowerCase() !== leaderName.toLowerCase()
+        name.toLowerCase() !== leaderName.toLowerCase(),
     );
 
     setFilteredMembers(matches);
@@ -123,20 +117,25 @@ export default function Home() {
     setGroupData(todayData);
   };
 
+  // useEffect(() => {
+  //   const fetchHabits = async () => {
+  //     const q = query(collection(db, "habits"), orderBy("order", "asc"));
+  //     const querySnapshot = await getDocs(q);
+  //     const habitList = querySnapshot.docs.map((doc) => ({
+  //       id: doc.id,
+  //       title: doc.data().title,
+  //       isCompleted: false,
+  //     }));
+  //     setHabits(habitList);
+  //     setLoading(false);
+  //   };
+  //   fetchHabits();
+  //   loadAnalysis();
+  // }, []);
+
   useEffect(() => {
-    const fetchHabits = async () => {
-      const q = query(collection(db, "habits"), orderBy("order", "asc"));
-      const querySnapshot = await getDocs(q);
-      const habitList = querySnapshot.docs.map((doc) => ({
-        id: doc.id,
-        title: doc.data().title,
-        isCompleted: false,
-      }));
-      setHabits(habitList);
-      setLoading(false);
-    };
-    fetchHabits();
     loadAnalysis();
+    setLoading(false);
   }, []);
 
   const loadDailyContext = async () => {
@@ -157,7 +156,7 @@ export default function Home() {
 
     const syncHabits = () => {
       const userLogs = groupData.filter(
-        (u: any) => u.leaderName?.toLowerCase() === leaderName.toLowerCase()
+        (u: any) => u.leaderName?.toLowerCase() === leaderName.toLowerCase(),
       );
 
       const completedSet = new Set(userLogs.flatMap((u: any) => u.habits));
@@ -166,7 +165,7 @@ export default function Home() {
         prev.map((h) => ({
           ...h,
           isCompleted: completedSet.has(h.title),
-        }))
+        })),
       );
     };
 
@@ -178,14 +177,14 @@ export default function Home() {
 
     const syncTodayProgress = () => {
       const userTodayUpdates = groupData.filter(
-        (u) => u.leaderName.toLowerCase() === leaderName.toLowerCase()
+        (u) => u.leaderName.toLowerCase() === leaderName.toLowerCase(),
       );
       const completedToday = new Set(userTodayUpdates.flatMap((u) => u.habits));
       setHabits((prevHabits) =>
         prevHabits.map((h) => ({
           ...h,
           isCompleted: completedToday.has(h.title),
-        }))
+        })),
       );
     };
     syncTodayProgress();
@@ -194,8 +193,8 @@ export default function Home() {
   const toggleHabit = (id: string) => {
     setHabits(
       habits.map((h) =>
-        h.id === id ? { ...h, isCompleted: !h.isCompleted } : h
-      )
+        h.id === id ? { ...h, isCompleted: !h.isCompleted } : h,
+      ),
     );
   };
 
@@ -215,7 +214,7 @@ export default function Home() {
 
     if (!allMembers.includes(leaderName)) {
       return setError(
-        "Access Denied: You must select a valid member name from the list."
+        "Access Denied: You must select a valid member name from the list.",
       );
     }
 
